@@ -1,0 +1,18 @@
+{
+  "name": "mon_portefolio",
+  "version": "1.0.0",
+  "description": "mon premier portefolio",
+  "main": "index.js",
+  "scripts": {
+    "sass": "sass --watch ./sass/main.scss:css/style.css "
+  },
+  "repository": {
+    "type": "git",
+    "url": "mon_portefolio"
+  },
+  "author": "jlnko",
+  "license": "ISC",
+  "dependencies": {
+    "sass": "^1.57.1"
+  }
+}
