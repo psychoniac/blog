@@ -3,7 +3,10 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from 'yup';
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from "../../lib/firebaseConfig";
+import { useState } from "react";
+import ErrorModal from "../Modal/ModalError";
 
 // Validation schéma avec yup
 const schema = yup.object().shape({
@@ -35,99 +38,131 @@ export default function FormSignUp() {
   const { register, handleSubmit, formState: { errors }, reset } = useForm({
     resolver: yupResolver(schema)
   });
+  // Etat pour stocker les message d'erreur
+  const [errorMessage, setErrorMessage] = useState(''); 
+  // Etat pour controler la modal
+  const [showModal, setShowModal] = useState(false);
 
   const onSubmit = async (data) => {
     try {
+      // on réinitialise le message d'erreur avant chaque soumission
+      setErrorMessage('');
+      setShowModal(false);
       // creation de l'utilisateur avec firebase auth
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
+      // upload de l'avatar si un fichier est selectionné
+      let avatarURL = null;
+      if (data.avatar && data.avatar.length > 0) {
+        avatarURL = await handleAvatarUpload(data.avatar[0]);
+      }
+
       // sauvegarde des informations supplémentaires dans firestore
-      await setDoc(doc(db, 'users', user.uid) {
+      await setDoc(doc(db, 'users', user.uid), {
         pseudo: data.pseudo,
         birthdate: data.birthdate,
         region: data.region,
         gender: data.gender,
         hobbies: data.hobbies,
         work: data.work,
-        avatar: data.avatar ? await handleAvatarUpload(data.avatar[0]) : null, //  upload de l'avatar si il est fournit
+        avatar: avatarURL, //  URL de l'avatar après l'upload
         role: data.pseudo === 'jlnko' ? 'admin' : 'user' // on assigne un role
       });
 
       reset(); // reset le formulaire après succès
       alert('Inscription réussie');
     } catch(error){
+      // gestion de l'erreur lors de la création d'utilisateur 
+      if (error.code === 'auth/email-already-in-use'){
+        setErrorMessage('Cet email est déjà utilisé.');
+      } else {
+        setErrorMessage('Une erreur s\'est produite lors de l\'inscription.');
+      }
+      setShowModal(true);
       console.error('Erreur lors de l\'inscription:', error);
-      alert('Erreur lors de l\'inscription');
     }
   };
 
   // fonction pour gérer l'upload de l'avatar
   const handleAvatarUpload = async (file) => {
-    // logique d'upload dans firebase storage 
-    const storageRef = ref(storage, `avatars/${file.name}`);
-    await uploadBytes(storageRef, file);
-    const avatarURL = await getDownloadURL(storageRef);
-    return avatarURL;
+    try {
+      const storageRef = ref(storage, `avatars/${file.name}`);
+      // upload du fichier dans firebase storage
+      await uploadBytes(storageRef, file);
+      // on obtient l'url de téléchargement
+      const avatarURL = await getDownloadURL(storageRef);
+      return avatarURL;
+    } catch (error){
+      console.error('Erreur lors de l\'upload de l\'avatar:', error);
+      throw new Error('Erreur lors de l\'upload de l\'avatar');
+    }
   };
+
+  // Fonction pour fermer la modal
+  const handleCloseModal = () => {
+    setShowModal(false);
+    reset();
+  }
   
   return (
+    <>
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
-        <label htmlFor="">Pseudo</label>
+        <label htmlFor="pseudo">Pseudo</label>
         <input type="text" {...register('pseudo')} />
         {errors.pseudo && <p>{errors.pseudo.message}</p>}
       </div>
 
       <div>
-        <label htmlFor="">Email</label>
+        <label htmlFor="email">Email</label>
         <input type="email" {...register('email')} />
         {errors.email && <p>{errors.email.message}</p>}
       </div>
 
       <div>
-        <label htmlFor="">Mot de passe</label>
+        <label htmlFor="password">Mot de passe</label>
         <input type="password" {...register('password')} />
         {errors.password && <p>{errors.password.message}</p>}
       </div>
 
       <div>
-        <label htmlFor="">Confirmez le mot de passe</label>
+        <label htmlFor="confirmPassword">Confirmez le mot de passe</label>
         <input type="password" {...register('confirmPassword')} />
         {errors.confirmPassword && <p>{errors.confirmPassword.message}</p>}
       </div>
 
       <div>
-        <label htmlFor="">Date de naissance</label>
+        <label htmlFor="birthdate">Date de naissance</label>
         <input type="date" {...register('birthdate')} />
         {errors.birthdate && <p>{errors.birthdate.message}</p>}
       </div>
 
       <div>
         {/* voir pour implementer une carte de france pour choisir une région ou une carte du monde pour choisir un pays */}
-        <label htmlFor="">Région ou pays</label>
+        <label htmlFor="region">Région ou pays</label>
         <input type="text" {...register('region')} />
       </div>
 
       <div>
         <label>Genre</label>
         <label htmlFor="male">
-          <input type="radio" value='male' {...register('gender')} name="male" id="male" />
+          <input type="radio" value='male' {...register('gender')} />
           Homme
         </label>
         <label htmlFor="female">
-          <input type="radio" value='female' {...register('gender')} name="female" id="female" />
+          <input type="radio" value='female' {...register('gender')} />
           Femme
         </label>
         <label htmlFor="other">
-          <input type="radio" value='other' {...register('gender')} name="other" id="other" />
+          <input type="radio" value='other' {...register('gender')} />
           LGBTQIA+
         </label>
       </div>
 
       <div>
         <label htmlFor="hobbies">Hobbies</label>
-        <select multiple {...register('hobbies')} name="hobbies" id="hobbies">
+        <select multiple {...register('hobbies')} id="hobbies">
           <option value="sport">Sport</option>
           <option value="music">Musique</option>
           <option value="gaming">E-sport</option>
@@ -141,11 +176,16 @@ export default function FormSignUp() {
 
       <div>
         <label htmlFor="avatar">Avatar (PNG uniquement)</label>
-        <input type="file" accept="image/png" name="avatar" id="avatar" {...register('avatar')} />
+        <input type="file" accept="image/png" {...register('avatar')} />
         {errors.avatar && <p>{errors.avatar.message}</p>}
       </div>
 
-      <button type="submit">S\'inscrire</button>
+
+      <button type="submit">Sinscrire</button>
     </form>
+
+    {/* Affiche la modal si showModal est a true */}
+    {showModal && <ErrorModal message={errorMessage} onClose={handleCloseModal} />}
+</>
   );
 };

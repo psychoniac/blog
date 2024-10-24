@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { getDocs, Query, where, collection } from "firebase/firestore";
+import { getDocs, query, where, collection } from "firebase/firestore";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../../lib/firebaseConfig";
 import Modal from "../Modal";
@@ -51,8 +51,31 @@ const FormLogin = () => {
 
   return (
     <div>
-      
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div>
+          <label>Entrez votre email ou votre pseudo :</label>
+          <input type="text" {...register('identifier', {required: true})} />
+          {errors.identifier && <p>Un email ou un pseudo est requis.</p>}
+        </div>
+
+        <div>
+          <label>Mot de passe :</label>
+          <input type="password" {...register('password', {required: true})} />
+          {errors.password && <p>Mot de passe requis.</p>}
+        </div>
+
+        <button type="submit">Connexion</button>
+      </form>
+
+      {/* Modal de confirmation de connexion */ }
+      {modalMessage && (
+        <Modal>
+          <p>{modalMessage}</p>
+          <button onClick={handleRedirect}>OK</button>
+        </Modal>
+      )}
     </div>
   );
+};
 
-}
+export default FormLogin;
