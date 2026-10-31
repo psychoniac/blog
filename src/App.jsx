@@ -5,12 +5,14 @@ import { AuthModal } from './features/auth/AuthModal'
 import { FeedPage } from './features/feed/FeedPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { CreatePostForm } from './features/posts/CreatePostForm'
+import { PublicProfilePage } from './features/profile/PublicProfilePage'
+import { PortfolioPage } from './features/portfolio/PortfolioPage'
 
 export function App() {
   const [session, setSession] = useState(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [currentView, setCurrentView] = useState('feed') // 'feed', 'profile', 'create'
-
+  const [currentView, setCurrentView] = useState('feed') // 'feed', 'profile', 'create', 'public-profile'
+  const [selectedAuthorId, setSelectedAuthorId] = useState(null)
   // Écoute de l'état d'authentification Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,6 +46,26 @@ export function App() {
         <FeedPage
           currentSession={session}
           onNavigateToCreate={() => setCurrentView('create')}
+          onAuthorClick={(authorId) => {
+            setSelectedAuthorId(authorId)
+            setCurrentView('public-profile')
+          }}
+        />
+      )}
+
+      {currentView === 'portfolio' && (
+        <PortfolioPage currentSession={session} />
+      )}
+
+      {currentView === 'public-profile' && (
+        <PublicProfilePage
+          userId={selectedAuthorId}
+          currentSession={session}
+          onBack={() => setCurrentView('feed')}
+          onAuthorClick={(authorId) => {
+            // Permet de naviguer de profil en profil si on clique sur un auteur depuis un autre profil
+            setSelectedAuthorId(authorId)
+          }}
         />
       )}
 

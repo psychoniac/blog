@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { CommentSection } from '../../features/comments/CommentSection'
 import { Heart, MessageSquare, Share2, Trash2 } from 'lucide-react'
 
-export const PostCard = ({ post, currentSession, onDeleteSuccess }) => {
+export const PostCard = ({ post, currentSession, onDeleteSuccess, onAuthorClick }) => {
     const [likesCount, setLikesCount] = useState(0)
     const [isLiked, setIsLiked] = useState(false)
     const [showComments, setShowComments] = useState(false)
@@ -80,19 +80,35 @@ export const PostCard = ({ post, currentSession, onDeleteSuccess }) => {
 
     return (
         <article className="bg-white border-2 border-black p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mb-6">
-
-            {/* En-tête */}
             <div className="flex justify-between items-center border-b-2 border-black pb-3 mb-4">
-                <span className="font-mono font-bold text-xs bg-black text-white px-2 py-1">
-                    @{post.author?.username || 'Anonyme'}
-                </span>
+
+                {/* Bouton cliquable vers le profil de l'auteur */}
+                <button
+                    onClick={() => {
+                        if (onAuthorClick && post.user_id) {
+                            onAuthorClick(post.user_id)
+                        }
+                    }}
+                    className="flex items-center gap-2 group cursor-pointer text-left"
+                    title={`Voir le profil de @${post.author?.username}`}
+                >
+                    {post.author?.avatar_url && (
+                        <img
+                            src={post.author.avatar_url}
+                            alt="Avatar"
+                            className="w-6 h-6 object-cover border border-black grayscale group-hover:grayscale-0 transition-all"
+                        />
+                    )}
+                    <span className="font-mono font-bold text-xs bg-black text-white px-2 py-1 group-hover:bg-yellow-400 group-hover:text-black transition-colors">
+                        @{post.author?.username || 'Anonyme'}
+                    </span>
+                </button>
 
                 <div className="flex items-center gap-3">
                     <span className="font-mono text-xs text-zinc-600">
                         {new Date(post.created_at).toLocaleDateString('fr-FR')}
                     </span>
 
-                    {/* Bouton de suppression réservé à l'auteur du post */}
                     {isOwnPost && (
                         <button
                             onClick={handleDeletePost}

@@ -56,6 +56,14 @@ export const Navbar = ({ isAuthenticated, onOpenAuth, onLogout, onNavigate }) =>
                                 <span>Profil</span>
                             </button>
 
+                            {/* portfolio */}
+                            <button
+                                onClick={() => onNavigate('portfolio')}
+                                className="font-mono font-bold text-xs uppercase hover:underline cursor-pointer"
+                            >
+                                Portfolio
+                            </button>
+
                             {/* Bouton Déconnexion */}
                             <button
                                 onClick={onLogout}

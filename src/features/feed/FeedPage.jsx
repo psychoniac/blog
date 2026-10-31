@@ -12,7 +12,8 @@ import { Loader2, RefreshCw, Terminal } from 'lucide-react'
  * @param {Object} props.currentSession - Session de l'utilisateur connecté
  * @param {Function} props.onNavigateToCreate - Callback pour basculer vers le formulaire de création
  */
-export const FeedPage = ({ currentSession, onNavigateToCreate }) => {
+
+export const FeedPage = ({ currentSession, onNavigateToCreate, onAuthorClick }) => {
     const [posts, setPosts] = useState([])
     const [loading, setLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState(null)
@@ -110,6 +111,7 @@ export const FeedPage = ({ currentSession, onNavigateToCreate }) => {
                                 key={post.id}
                                 post={post}
                                 currentSession={currentSession}
+                                onAuthorClick={onAuthorClick} // <-- 2. Le passer obligatoirement à PostCard
                                 onDeleteSuccess={(deletedPostId) => {
                                     setPosts((prev) => prev.filter((p) => p.id !== deletedPostId))
                                 }}

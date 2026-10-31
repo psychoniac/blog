@@ -13,7 +13,7 @@ import { Loader2, Sparkles, CheckCircle, AlertCircle, Lock } from 'lucide-react'
  * @param {string} props.userId - ID de l'utilisateur dont on affiche le profil
  * @param {Object} props.currentSession - Session Supabase de l'utilisateur connecté
  */
-export const ProfilePage = ({ userId, currentSession }) => {
+export const ProfilePage = ({ userId, currentSession, onAuthorClick }) => {
     const [profile, setProfile] = useState(null)
     const [posts, setPosts] = useState([])
     const [loading, setLoading] = useState(true)
@@ -35,50 +35,51 @@ export const ProfilePage = ({ userId, currentSession }) => {
     // Indique si le profil affiché est celui de l'utilisateur connecté
     const isOwner = Boolean(currentSession?.user?.id && currentSession.user.id === userId)
 
+
+
     // Chargement des données du profil et de ses posts
-    const fetchProfileData = async () => {
-        setLoading(true)
-        try {
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single()
-
-            if (profileError) throw profileError
-
-            setProfile(profileData)
-            // Initialisation des champs du formulaire avec les données actuelles
-            setUsername(profileData.username || '')
-            setAvatarUrl(profileData.avatar_url || AVATAR_STYLES[0].url)
-            setBio(profileData.bio || '')
-            setAge(profileData.age || '')
-            setGender(profileData.gender || '')
-            setJob(profileData.job || '')
-            setHobbies(profileData.hobbies || '')
-
-            const { data: postsData, error: postsError } = await supabase
-                .from('posts')
-                .select(`
-          *,
-          author:profiles(username, avatar_url)
-        `)
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false })
-
-            if (postsError) throw postsError
-            setPosts(postsData || [])
-        } catch (err) {
-            console.error('Erreur lors du chargement du profil :', err)
-        } finally {
-            setLoading(false)
-        }
-    }
-
     useEffect(() => {
-        if (userId) {
-            fetchProfileData()
+        if (!userId) return
+
+        const loadProfileAndPosts = async () => {
+            setLoading(true)
+            try {
+                const { data: profileData, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single()
+
+                if (profileError) throw profileError
+
+                setProfile(profileData)
+                setUsername(profileData.username || '')
+                setAvatarUrl(profileData.avatar_url || AVATAR_STYLES[0].url)
+                setBio(profileData.bio || '')
+                setAge(profileData.age || '')
+                setGender(profileData.gender || '')
+                setJob(profileData.job || '')
+                setHobbies(profileData.hobbies || '')
+
+                const { data: postsData, error: postsError } = await supabase
+                    .from('posts')
+                    .select(`
+            *,
+            author:profiles(username, avatar_url)
+          `)
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false })
+
+                if (postsError) throw postsError
+                setPosts(postsData || [])
+            } catch (err) {
+                console.error('Erreur lors du chargement du profil :', err)
+            } finally {
+                setLoading(false)
+            }
         }
+
+        loadProfileAndPosts()
     }, [userId])
 
     // Générer un pseudo aléatoire
@@ -153,7 +154,6 @@ export const ProfilePage = ({ userId, currentSession }) => {
             }
 
             setSuccessMessage('Profil mis à jour avec succès !')
-            fetchProfileData()
         } catch (err) {
             setErrorMessage(err.message || 'Erreur lors de la mise à jour.')
         } finally {
@@ -336,11 +336,8 @@ export const ProfilePage = ({ userId, currentSession }) => {
                     <PostCard
                         key={post.id}
                         post={post}
-                        onCommentClick={() => alert(`Commentaires du post ${post.id}`)}
-                        onShareClick={() => {
-                            navigator.clipboard.writeText(window.location.href)
-                            alert("Lien copié dans le presse-papier !")
-                        }}
+                        currentSession={currentSession}
+                        onAuthorClick={onAuthorClick} // <-- Le transmettre ici aussi
                     />
                 ))
             ) : (
