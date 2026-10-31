@@ -2,20 +2,21 @@ import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { Layout } from './components/layouts/Layout'
 import { AuthModal } from './features/auth/AuthModal'
+import { FeedPage } from './features/feed/FeedPage'
+import { ProfilePage } from './features/profile/ProfilePage'
+import { CreatePostForm } from './features/posts/CreatePostForm'
 
 export function App() {
   const [session, setSession] = useState(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [currentView, setCurrentView] = useState('feed')
+  const [currentView, setCurrentView] = useState('feed') // 'feed', 'profile', 'create'
 
-  // Synchronisation de la session Supabase
+  // Écoute de l'état d'authentification Supabase
   useEffect(() => {
-    // 1. Récupérer la session courante au chargement
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
     })
 
-    // 2. Écouter les changements d'état d'authentification (connexion, déconnexion)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -25,7 +26,7 @@ export function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Déconnexion
+  // Gestion de la déconnexion
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setCurrentView('feed')
@@ -38,19 +39,28 @@ export function App() {
       onLogout={handleLogout}
       onNavigate={(view) => setCurrentView(view)}
     >
-      {/* Contenu principal selon la vue */}
-      <div className="border-2 border-black bg-white p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-        <h2 className="text-2xl font-black uppercase mb-2">
-          // ESPACE {currentView.toUpperCase()}
-        </h2>
-        <p className="font-mono text-sm text-zinc-700">
-          {session ? (
-            <span>Connecté en tant que : <strong>{session.user.email}</strong></span>
-          ) : (
-            <span>Mode visiteur non connecté.</span>
-          )}
-        </p>
-      </div>
+      {/* Affichage conditionnel des pages selon la navigation */}
+      {currentView === 'feed' && (
+        <FeedPage
+          currentSession={session}
+          onNavigateToCreate={() => setCurrentView('create')}
+        />
+      )}
+
+      {currentView === 'profile' && session && (
+        <ProfilePage
+          userId={session.user.id}
+          currentSession={session}
+        />
+      )}
+
+      {currentView === 'create' && session && (
+        <CreatePostForm
+          userId={session.user.id}
+          onSuccess={() => setCurrentView('feed')}
+          onCancel={() => setCurrentView('feed')}
+        />
+      )}
 
       {/* Modale d'authentification */}
       {isAuthOpen && (
