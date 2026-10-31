@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+body {
+  background-color: #f4f4f0; /* Un blanc cassé papier journal / rétro */
+  color: #111111;
+}
