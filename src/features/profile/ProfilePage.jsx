@@ -86,6 +86,32 @@ export const ProfilePage = ({ userId, currentSession }) => {
         setUsername(generateStreetUsername())
     }
 
+    /**
+   * Action de suppression définitive du profil et déconnexion
+   */
+    const handleDeleteAccount = async () => {
+        const confirmation = window.confirm(
+            "⚠️ ATTENTION : Es-tu sûr de vouloir supprimer définitivement ton compte ?\nToutes tes publications, commentaires et photos seront effacés sans retour possible."
+        )
+        if (!confirmation) return
+
+        try {
+            // 1. Suppression dans la table profiles (cascade automatique sur posts, likes, comments)
+            const { error: profileDeleteError } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', userId)
+
+            if (profileDeleteError) throw profileDeleteError
+
+            // 2. Déconnexion de l'utilisateur
+            await supabase.auth.signOut()
+            alert("Ton compte et toutes tes données ont été supprimés.")
+            window.location.reload()
+        } catch (err) {
+            alert("Erreur lors de la suppression du compte : " + err.message)
+        }
+    }
     // Sauvegarde des modifications
     const handleSaveProfile = async (e) => {
         e.preventDefault()
@@ -143,6 +169,7 @@ export const ProfilePage = ({ userId, currentSession }) => {
             </div>
         )
     }
+
 
     return (
         <div className="space-y-8">
@@ -265,6 +292,23 @@ export const ProfilePage = ({ userId, currentSession }) => {
                         </Button>
 
                     </form>
+
+                    {/* ZONE DANGEREUSE : SUPPRESSION DE COMPTE */}
+                    <div className="border-2 border-red-600 p-4 bg-red-50 mt-8">
+                        <span className="font-mono text-xs font-bold uppercase text-red-800 block mb-2">
+    // ZONE DANGEREUSE
+                        </span>
+                        <p className="font-mono text-xs text-red-700 mb-4">
+                            La suppression de ton compte est définitive. Tes articles, photos et commentaires seront tous effacés.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleDeleteAccount}
+                            className="px-4 py-2 bg-red-600 text-white font-mono font-bold text-xs uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-black transition-colors cursor-pointer"
+                        >
+                            Supprimer mon profil définitivement
+                        </button>
+                    </div>
                 </div>
             ) : (
                 /* Affichage en mode lecture si c'est le profil d'un autre utilisateur */

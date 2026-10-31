@@ -110,6 +110,9 @@ export const FeedPage = ({ currentSession, onNavigateToCreate }) => {
                                 key={post.id}
                                 post={post}
                                 currentSession={currentSession}
+                                onDeleteSuccess={(deletedPostId) => {
+                                    setPosts((prev) => prev.filter((p) => p.id !== deletedPostId))
+                                }}
                             />
                         ))
                     ) : (

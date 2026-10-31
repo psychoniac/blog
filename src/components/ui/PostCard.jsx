@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { CommentSection } from '../../features/comments/CommentSection'
-import { Heart, MessageSquare, Share2 } from 'lucide-react'
+import { Heart, MessageSquare, Share2, Trash2 } from 'lucide-react'
 
-export const PostCard = ({ post, currentSession }) => {
+export const PostCard = ({ post, currentSession, onDeleteSuccess }) => {
     const [likesCount, setLikesCount] = useState(0)
     const [isLiked, setIsLiked] = useState(false)
     const [showComments, setShowComments] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const isOwnPost = currentSession?.user?.id === post.user_id
 
@@ -25,16 +26,38 @@ export const PostCard = ({ post, currentSession }) => {
         fetchLikes()
     }, [post.id, currentSession])
 
-    // Gestion du Clic sur Like
+    // Suppression d'une publication
+    const handleDeletePost = async () => {
+        const confirmDelete = window.confirm("Es-tu sûr de vouloir supprimer cette publication ? Cette action est irréversible.")
+        if (!confirmDelete) return
+
+        setIsDeleting(true)
+
+        try {
+            // 1. Si le post contient une image, on la supprime du Storage
+            if (post.image_url) {
+                const urlParts = post.image_url.split('/')
+                const fileName = urlParts[urlParts.length - 1]
+                await supabase.storage.from('post-images').remove([fileName])
+            }
+
+            // 2. Suppression de la ligne dans la table posts
+            const { error } = await supabase.from('posts').delete().eq('id', post.id)
+
+            if (error) throw error
+
+            if (onDeleteSuccess) onDeleteSuccess(post.id)
+        } catch (err) {
+            alert("Erreur lors de la suppression : " + err.message)
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    // Like / Unlike
     const handleToggleLike = async () => {
-        if (!currentSession) {
-            alert('Connecte-toi pour aimer une publication.')
-            return
-        }
-        if (isOwnPost) {
-            alert('Tu ne peux pas aimer ton propre message.')
-            return
-        }
+        if (!currentSession) return alert('Connecte-toi pour aimer une publication.')
+        if (isOwnPost) return alert('Tu ne peux pas aimer ton propre message.')
 
         if (isLiked) {
             await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', currentSession.user.id)
@@ -44,7 +67,7 @@ export const PostCard = ({ post, currentSession }) => {
         fetchLikes()
     }
 
-    // Partager le post
+    // Partager
     const handleShare = () => {
         const shareUrl = `${window.location.origin}/#post-${post.id}`
         if (navigator.share) {
@@ -63,9 +86,24 @@ export const PostCard = ({ post, currentSession }) => {
                 <span className="font-mono font-bold text-xs bg-black text-white px-2 py-1">
                     @{post.author?.username || 'Anonyme'}
                 </span>
-                <span className="font-mono text-xs text-zinc-600">
-                    {new Date(post.created_at).toLocaleDateString('fr-FR')}
-                </span>
+
+                <div className="flex items-center gap-3">
+                    <span className="font-mono text-xs text-zinc-600">
+                        {new Date(post.created_at).toLocaleDateString('fr-FR')}
+                    </span>
+
+                    {/* Bouton de suppression réservé à l'auteur du post */}
+                    {isOwnPost && (
+                        <button
+                            onClick={handleDeletePost}
+                            disabled={isDeleting}
+                            title="Supprimer la publication"
+                            className="p-1 bg-red-600 text-white hover:bg-black transition-colors cursor-pointer"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Titre & Contenu */}
@@ -79,26 +117,18 @@ export const PostCard = ({ post, currentSession }) => {
                 </div>
             )}
 
-            {/* Barre d'actions (Like, Commentaires, Partage) */}
+            {/* Barre d'actions */}
             <div className="flex flex-wrap items-center gap-2 pt-3 border-t-2 border-dashed border-zinc-400">
-
-                {/* Bouton Like */}
                 <button
                     onClick={handleToggleLike}
                     disabled={isOwnPost}
-                    title={isOwnPost ? "Tu ne peux pas liker tes propres posts" : "J'aime"}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-xs font-bold uppercase border-2 border-black transition-all cursor-pointer ${isOwnPost
-                        ? 'opacity-50 cursor-not-allowed bg-zinc-100 text-zinc-400'
-                        : isLiked
-                            ? 'bg-red-500 text-white'
-                            : 'bg-white hover:bg-yellow-400'
+                    className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-xs font-bold uppercase border-2 border-black cursor-pointer ${isOwnPost ? 'opacity-50 bg-zinc-100 text-zinc-400 cursor-not-allowed' : isLiked ? 'bg-red-500 text-white' : 'bg-white hover:bg-yellow-400'
                         }`}
                 >
                     <Heart size={14} className={isLiked ? 'fill-white' : ''} />
                     <span>{likesCount}</span>
                 </button>
 
-                {/* Bouton Commentaires */}
                 <button
                     onClick={() => setShowComments(!showComments)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white font-mono text-xs font-bold uppercase border-2 border-black hover:bg-yellow-400 cursor-pointer"
@@ -107,7 +137,6 @@ export const PostCard = ({ post, currentSession }) => {
                     <span>Commentaires</span>
                 </button>
 
-                {/* Bouton Partage */}
                 <button
                     onClick={handleShare}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white font-mono text-xs font-bold uppercase border-2 border-black hover:bg-yellow-400 cursor-pointer ml-auto"
@@ -117,7 +146,7 @@ export const PostCard = ({ post, currentSession }) => {
                 </button>
             </div>
 
-            {/* Zone des Commentaires déliée */}
+            {/* Commentaires */}
             {showComments && <CommentSection postId={post.id} currentSession={currentSession} />}
 
         </article>
