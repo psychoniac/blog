@@ -1,51 +1,41 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
-import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
-import { AlertCircle, X } from 'lucide-react'
+import { Input } from '../../components/ui/Input'
+import { X, Lock, Mail, User, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 /**
- * Composant de connexion et d'inscription Supabase.
- * Responsabilité unique : Gérer la saisie des identifiants et l'interaction avec Supabase Auth.
+ * Modale d'authentification (Connexion / Inscription).
+ * Responsabilité unique : Gérer la saisie des identifiants et communiquer avec Supabase Auth.
  * 
  * @param {Object} props
- * @param {Function} props.onClose - Callback pour fermer la modale
- * @param {Function} props.onSuccess - Callback exécuté une fois connecté
+ * @param {Function} props.onClose - Fonction pour fermer la modale
+ * @param {Function} props.onSuccess - Callback exécuté après une connexion/inscription réussie
  */
-
 export const AuthModal = ({ onClose, onSuccess }) => {
-    // Mode du formulaire : 'login' ou 'register'
-    const [isRegisterMode, setIsRegisterMode] = useState(false)
-
-    // Champs du formulaire
+    const [isSignUp, setIsSignUp] = useState(false) // false = Connexion, true = Inscription
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [username, setUsername] = useState('')
-
-    // États d'exécution et d'erreur
     const [loading, setLoading] = useState(false)
-    const [errorMessage, setErrorMessage] = useState(null)
+    const [errorMsg, setErrorMsg] = useState(null)
+    const [successMsg, setSuccessMsg] = useState(null)
 
-
-    /**
-     * Traitement de la soumission du formulaire (Connexion ou Inscription)
-     */
     const handleSubmit = async (e) => {
         e.preventDefault()
         setLoading(true)
-        setErrorMessage(null)
+        setErrorMsg(null)
+        setSuccessMsg(null)
 
         try {
-            if (isRegisterMode) {
-                // 1. Validation du pseudo
+            if (isSignUp) {
+                // --- INSCRIPTION ---
                 if (!username.trim()) {
-                    throw new Error('Un pseudo est requis pour créer un profil.')
+                    throw new Error("Le pseudo est obligatoire pour l'inscription.")
                 }
 
-                // 2. Création du compte utilisateur dans Supabase Auth
-                // On passe le pseudo dans 'options.data' pour que le trigger SQL le récupère automatiquement
-                const { error: authError } = await supabase.auth.signUp({
-                    email,
+                const { error: signUpError } = await supabase.auth.signUp({
+                    email: email.trim(),
                     password,
                     options: {
                         data: {
@@ -54,126 +44,151 @@ export const AuthModal = ({ onClose, onSuccess }) => {
                     },
                 })
 
-                if (authError) throw authError
+                if (signUpError) throw signUpError
 
+                setSuccessMsg("Compte créé avec succès ! Tu peux maintenant te connecter.")
+                setIsSignUp(false) // Basculer vers la connexion
             } else {
-                // Connexion simple via Supabase Auth
-                const { error: loginError } = await supabase.auth.signInWithPassword({
-                    email,
+                // --- CONNEXION ---
+                const { error: signInError } = await supabase.auth.signInWithPassword({
+                    email: email.trim(),
                     password,
                 })
 
-                if (loginError) throw loginError
-            }
+                if (signInError) throw signInError
 
-            // Notification de succès et fermeture
-            if (onSuccess) onSuccess()
-            if (onClose) onClose()
+                if (onSuccess) onSuccess()
+                onClose()
+            }
         } catch (err) {
-            setErrorMessage(err.message || 'Une erreur est survenue.')
+            setErrorMsg(err.message || "Une erreur est survenue lors de l'authentification.")
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-[#f4f4f0] border-4 border-black p-6 max-w-md w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
+        <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+            <div className="bg-white border-4 border-black max-w-md w-full p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
 
-                {/* Bouton fermeture */}
+                {/* Bouton de fermeture */}
                 <button
                     onClick={onClose}
-                    className="absolute top-3 right-3 p-1 bg-black text-white hover:bg-yellow-400 hover:text-black transition-colors"
+                    className="absolute top-4 right-4 p-1 bg-white border-2 border-black hover:bg-black hover:text-white transition-colors cursor-pointer"
                 >
-                    <X size={20} />
+                    <X size={18} />
                 </button>
 
-                {/* Titre du formulaire */}
-                <h2 className="text-xl font-black uppercase tracking-tight mb-1">
-          // {isRegisterMode ? 'REJOINDRE LE LEAGUE' : 'ACCÈS MEMBRE'}
-                </h2>
-                <p className="font-mono text-xs text-zinc-600 mb-6">
-                    {isRegisterMode
-                        ? 'Crée ton profil pour publier tes récits et photos.'
-                        : 'Identifie-toi pour accéder à ton espace.'}
-                </p>
+                {/* En-tête de la modale */}
+                <div className="border-b-2 border-black pb-3 mb-5">
+                    <h3 className="text-xl font-black uppercase tracking-wide">
+                        {isSignUp ? '// CRÉER UN COMPTE' : '// IDENTIFICATION'}
+                    </h3>
+                    <p className="font-mono text-xs text-zinc-600 mt-0.5">
+                        {isSignUp ? "Rejoins le fanzine et prends part au réseau." : "Bon retour parmi nous, connecte-toi."}
+                    </p>
+                </div>
 
                 {/* Message d'erreur */}
-                {errorMessage && (
-                    <div className="mb-4 p-3 bg-red-100 border-2 border-red-600 text-red-800 font-mono text-xs flex items-center gap-2">
-                        <AlertCircle size={18} className="shrink-0" />
-                        <span>{errorMessage}</span>
+                {errorMsg && (
+                    <div className="mb-4 p-3 bg-red-100 border-2 border-red-600 text-red-800 font-mono text-xs flex items-start gap-2">
+                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                        <span>{errorMsg}</span>
+                    </div>
+                )}
+
+                {/* Message de succès */}
+                {successMsg && (
+                    <div className="mb-4 p-3 bg-green-100 border-2 border-green-600 text-green-800 font-mono text-xs flex items-start gap-2">
+                        <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
+                        <span>{successMsg}</span>
                     </div>
                 )}
 
                 {/* Formulaire */}
-                <form onSubmit={handleSubmit}>
-                    {isRegisterMode && (
-                        <Input
-                            label="Pseudo (Visible sur le blog)"
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder="ex: Bitume_94"
-                            required
-                        />
+                <form onSubmit={handleSubmit} className="space-y-4">
+
+                    {/* Champ Pseudo (Uniquement en mode Inscription) */}
+                    {isSignUp && (
+                        <div>
+                            <label className="font-mono text-xs font-bold uppercase block mb-1 flex items-center gap-1.5">
+                                <User size={14} />
+                                <span>Pseudo</span>
+                            </label>
+                            <Input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required={isSignUp}
+                                placeholder="ex: rider_94"
+                                className="w-full px-3 py-2 bg-white font-mono text-sm border-2 border-black focus:outline-none focus:bg-yellow-50"
+                            />
+                        </div>
                     )}
 
-                    <Input
-                        label="Adresse Email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="votre@email.com"
-                        required
-                    />
+                    {/* Champ Email */}
+                    <div>
+                        <label className="font-mono text-xs font-bold uppercase block mb-1 flex items-center gap-1.5">
+                            <Mail size={14} />
+                            <span>Adresse Email</span>
+                        </label>
+                        <Input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            placeholder="toi@exemple.com"
+                            className="w-full px-3 py-2 bg-white font-mono text-sm border-2 border-black focus:outline-none focus:bg-yellow-50"
+                        />
+                    </div>
 
-                    <Input
-                        label="Mot de passe"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        required
-                    />
+                    {/* Champ Mot de passe */}
+                    <div>
+                        <label className="font-mono text-xs font-bold uppercase block mb-1 flex items-center gap-1.5">
+                            <Lock size={14} />
+                            <span>Mot de passe</span>
+                        </label>
+                        <Input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            placeholder="••••••••"
+                            className="w-full px-3 py-2 bg-white font-mono text-sm border-2 border-black focus:outline-none focus:bg-yellow-50"
+                        />
+                    </div>
 
+                    {/* Bouton de soumission */}
                     <Button
                         type="submit"
                         variant="primary"
-                        className="w-full mt-2"
+                        disabled={loading}
+                        className="w-full py-2.5 mt-2 text-sm"
                     >
-                        {loading
-                            ? 'CHARGEMENT...'
-                            : isRegisterMode ? 'CRÉER MON COMPTE' : 'SE CONNECTER'}
+                        {loading ? 'TRAITEMENT EN COURS...' : isSignUp ? "S'INSCRIRE" : "SE CONNECTER"}
                     </Button>
                 </form>
 
-                {/* Bascule Connexion / Inscription */}
-                <div className="mt-6 pt-4 border-t-2 border-dashed border-zinc-400 text-center font-mono text-xs">
-                    {isRegisterMode ? (
+                {/* Bascule entre Connexion et Inscription */}
+                <div className="mt-5 pt-4 border-t-2 border-dashed border-zinc-300 text-center font-mono text-xs">
+                    {isSignUp ? (
                         <p>
                             Déjà un compte ?{' '}
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setIsRegisterMode(false)
-                                    setErrorMessage(null)
-                                }}
-                                className="font-bold underline uppercase hover:text-yellow-600"
+                                onClick={() => { setIsSignUp(false); setErrorMsg(null); setSuccessMsg(null); }}
+                                className="font-bold underline uppercase hover:text-yellow-600 cursor-pointer"
                             >
                                 Se connecter
                             </button>
                         </p>
                     ) : (
                         <p>
-                            Pas encore inscrit ?{' '}
+                            Pas encore de compte ?{' '}
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setIsRegisterMode(true)
-                                    setErrorMessage(null)
-                                }}
-                                className="font-bold underline uppercase hover:text-yellow-600"
+                                onClick={() => { setIsSignUp(true); setErrorMsg(null); setSuccessMsg(null); }}
+                                className="font-bold underline uppercase hover:text-yellow-600 cursor-pointer"
                             >
                                 Créer un compte
                             </button>
