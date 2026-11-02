@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { CommentSection } from '../../features/comments/CommentSection'
 import { Heart, MessageSquare, Share2, Trash2 } from 'lucide-react'
@@ -11,8 +11,8 @@ export const PostCard = ({ post, currentSession, onDeleteSuccess, onAuthorClick 
 
     const isOwnPost = currentSession?.user?.id === post.user_id
 
-    // Charger les likes du post
-    const fetchLikes = async () => {
+    // Fonction mémorisée pour charger les likes
+    const fetchLikes = useCallback(async () => {
         const { data } = await supabase.from('likes').select('user_id').eq('post_id', post.id)
         if (data) {
             setLikesCount(data.length)
@@ -20,30 +20,29 @@ export const PostCard = ({ post, currentSession, onDeleteSuccess, onAuthorClick 
                 setIsLiked(data.some((l) => l.user_id === currentSession.user.id))
             }
         }
-    }
+    }, [post.id, currentSession])
 
     useEffect(() => {
-        fetchLikes()
-    }, [post.id, currentSession])
+        if (post.id) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            fetchLikes()
+        }
+    }, [fetchLikes, post.id])
 
     // Suppression d'une publication
     const handleDeletePost = async () => {
-        const confirmDelete = window.confirm("Es-tu sûr de vouloir supprimer cette publication ? Cette action est irréversible.")
+        const confirmDelete = window.confirm("Es-tu sûr de vouloir supprimer cette publication ?")
         if (!confirmDelete) return
 
         setIsDeleting(true)
-
         try {
-            // 1. Si le post contient une image, on la supprime du Storage
             if (post.image_url) {
                 const urlParts = post.image_url.split('/')
                 const fileName = urlParts[urlParts.length - 1]
                 await supabase.storage.from('post-images').remove([fileName])
             }
 
-            // 2. Suppression de la ligne dans la table posts
             const { error } = await supabase.from('posts').delete().eq('id', post.id)
-
             if (error) throw error
 
             if (onDeleteSuccess) onDeleteSuccess(post.id)
@@ -80,24 +79,17 @@ export const PostCard = ({ post, currentSession, onDeleteSuccess, onAuthorClick 
 
     return (
         <article className="bg-white border-2 border-black p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mb-6">
-            <div className="flex justify-between items-center border-b-2 border-black pb-3 mb-4">
 
-                {/* Bouton cliquable vers le profil de l'auteur */}
+            {/* En-tête */}
+            <div className="flex justify-between items-center border-b-2 border-black pb-3 mb-4">
                 <button
                     onClick={() => {
-                        if (onAuthorClick && post.user_id) {
-                            onAuthorClick(post.user_id)
-                        }
+                        if (onAuthorClick && post.user_id) onAuthorClick(post.user_id)
                     }}
                     className="flex items-center gap-2 group cursor-pointer text-left"
-                    title={`Voir le profil de @${post.author?.username}`}
                 >
                     {post.author?.avatar_url && (
-                        <img
-                            src={post.author.avatar_url}
-                            alt="Avatar"
-                            className="w-6 h-6 object-cover border border-black grayscale group-hover:grayscale-0 transition-all"
-                        />
+                        <img src={post.author.avatar_url} alt="Avatar" className="w-6 h-6 object-cover border border-black grayscale group-hover:grayscale-0 transition-all" />
                     )}
                     <span className="font-mono font-bold text-xs bg-black text-white px-2 py-1 group-hover:bg-yellow-400 group-hover:text-black transition-colors">
                         @{post.author?.username || 'Anonyme'}
@@ -113,7 +105,7 @@ export const PostCard = ({ post, currentSession, onDeleteSuccess, onAuthorClick 
                         <button
                             onClick={handleDeletePost}
                             disabled={isDeleting}
-                            title="Supprimer la publication"
+                            title="Supprimer"
                             className="p-1 bg-red-600 text-white hover:bg-black transition-colors cursor-pointer"
                         >
                             <Trash2 size={14} />
@@ -122,18 +114,16 @@ export const PostCard = ({ post, currentSession, onDeleteSuccess, onAuthorClick 
                 </div>
             </div>
 
-            {/* Titre & Contenu */}
             {post.title && <h3 className="text-xl font-black uppercase mb-2">{post.title}</h3>}
             <p className="font-sans text-zinc-800 leading-relaxed mb-4 whitespace-pre-line">{post.content}</p>
 
-            {/* Image */}
             {post.image_url && (
                 <div className="mb-4 border-2 border-black overflow-hidden bg-zinc-100">
                     <img src={post.image_url} alt="Post" className="w-full h-auto object-cover max-h-96 grayscale hover:grayscale-0 transition-all" />
                 </div>
             )}
 
-            {/* Barre d'actions */}
+            {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 pt-3 border-t-2 border-dashed border-zinc-400">
                 <button
                     onClick={handleToggleLike}
@@ -162,7 +152,6 @@ export const PostCard = ({ post, currentSession, onDeleteSuccess, onAuthorClick 
                 </button>
             </div>
 
-            {/* Commentaires */}
             {showComments && <CommentSection postId={post.id} currentSession={currentSession} />}
 
         </article>

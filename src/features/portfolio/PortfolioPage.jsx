@@ -23,24 +23,24 @@ export const PortfolioPage = ({ currentSession }) => {
     // ID de l'administrateur (tu peux remplacer par ton ID Supabase si besoin, ou laisser ouvert au créateur)
     // Par défaut, on autorise si l'utilisateur est connecté et qu'il souhaite ajouter un projet.
 
-    const fetchPortfolio = async () => {
-        setLoading(true)
-        try {
-            const { data, error } = await supabase
-                .from('portfolio_items')
-                .select('*')
-                .order('created_at', { ascending: false })
-
-            if (error) throw error
-            setProjects(data || [])
-        } catch (err) {
-            console.error("Erreur chargement portfolio:", err)
-        } finally {
-            setLoading(false)
-        }
-    }
-
     useEffect(() => {
+        const fetchPortfolio = async () => {
+            setLoading(true)
+            try {
+                const { data, error } = await supabase
+                    .from('portfolio_items')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+
+                if (error) throw error
+                setProjects(data || [])
+            } catch (err) {
+                console.error("Erreur chargement portfolio:", err)
+            } finally {
+                setLoading(false)
+            }
+        }
+
         fetchPortfolio()
     }, [])
 
@@ -103,7 +103,7 @@ export const PortfolioPage = ({ currentSession }) => {
             setImageFile(null)
             setImagePreview(null)
             setShowAddForm(false)
-            fetchPortfolio()
+            //fetchPortfolio()
         } catch (err) {
             setErrorMsg(err.message || "Erreur lors de l'ajout du projet.")
         } finally {
@@ -230,7 +230,7 @@ export const PortfolioPage = ({ currentSession }) => {
                                 <label className="border-2 border-dashed border-black p-4 flex flex-col items-center justify-center gap-2 bg-zinc-50 hover:bg-yellow-50 cursor-pointer">
                                     <Image size={24} />
                                     <span className="font-mono text-xs font-bold uppercase">Ajouter une image</span>
-                                    <input type="file" accept="image/*" onChange={imageFile}  className="hidden" />
+                                    <input type="file" accept="image/*" onChange={imageFile} className="hidden" />
                                     <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                                 </label>
                             ) : (
@@ -257,8 +257,8 @@ export const PortfolioPage = ({ currentSession }) => {
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
                         className={`px-4 py-1.5 font-mono text-xs font-bold uppercase border-2 border-black transition-colors cursor-pointer ${selectedCategory === cat
-                                ? 'bg-black text-yellow-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-                                : 'bg-white hover:bg-zinc-100'
+                            ? 'bg-black text-yellow-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                            : 'bg-white hover:bg-zinc-100'
                             }`}
                     >
                         {cat}

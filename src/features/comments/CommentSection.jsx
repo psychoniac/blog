@@ -11,12 +11,12 @@ import { MessageSquare, Reply, CornerDownRight, Send, AlertCircle } from 'lucide
  * @param {string} props.postId - L'ID du post concerné
  * @param {Object} props.currentSession - Session de l'utilisateur connecté
  */
+
 export const CommentSection = ({ postId, currentSession }) => {
     const [comments, setComments] = useState([])
     const [newCommentText, setNewCommentText] = useState('')
     const [replyToId, setReplyToId] = useState(null) // Contient l'ID du commentaire auquel on répond
     const [replyText, setReplyText] = useState('')
-    const [loading, setLoading] = useState(false)
     const [errorMsg, setErrorMsg] = useState(null)
 
     // Chargement des commentaires avec leurs auteurs
@@ -39,7 +39,27 @@ export const CommentSection = ({ postId, currentSession }) => {
     }
 
     useEffect(() => {
-        if (postId) fetchComments()
+        const fetchComments = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('comments')
+                    .select(`
+            *,
+            author:profiles(username, avatar_url)
+          `)
+                    .eq('post_id', postId)
+                    .order('created_at', { ascending: true })
+
+                if (error) throw error
+                setComments(data || [])
+            } catch (err) {
+                console.error('Erreur chargement commentaires:', err)
+            }
+        }
+
+        if (postId) {
+            fetchComments()
+        }
     }, [postId])
 
     // Publier un commentaire principal ou une réponse
@@ -50,7 +70,6 @@ export const CommentSection = ({ postId, currentSession }) => {
             return
         }
 
-        setLoading(true)
         setErrorMsg(null)
 
         try {
@@ -75,8 +94,6 @@ export const CommentSection = ({ postId, currentSession }) => {
             fetchComments()
         } catch (err) {
             setErrorMsg(err.message || 'Erreur lors de l\'envoi du commentaire.')
-        } finally {
-            setLoading(false)
         }
     }
 
